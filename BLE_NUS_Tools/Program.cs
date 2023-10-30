@@ -10,6 +10,9 @@ using Microsoft.VisualBasic;
 using System.Runtime.InteropServices.WindowsRuntime;
 using static System.Runtime.InteropServices.JavaScript.JSType;
 using BLE;
+using System.Net;
+using System.Net.Sockets;
+using System.Text;
 
 namespace BLE
 {
@@ -68,6 +71,17 @@ namespace BLE
             };
             serviceProvider.StartAdvertising(advParameters);
             Console.WriteLine("Started advertising");
+
+            using Socket client = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
+            IPEndPoint ipEndPoint = new IPEndPoint(IPAddress.Parse("127.0.0.1"), 1337);
+            client.Connect(ipEndPoint);
+            var message = "Hi friends 👋!<|EOM|>";
+            var messageBytes = Encoding.UTF8.GetBytes(message);
+            client.Send(messageBytes);
+            //_ = await client.SendAsync(messageBytes, SocketFlags.None);
+            Console.WriteLine($"Socket client sent message: \"{message}\"");
+            client.Shutdown(SocketShutdown.Both);
+
 
             while (true) { }
         }
