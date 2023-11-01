@@ -20,7 +20,21 @@ namespace BLE
     {
         private static GattLocalCharacteristic txCharacteristic;
         private static GattLocalCharacteristic rxCharacteristic;
+        private static async Task<bool> CheckPeripheralRoleSupportAsync()
+        {
+            // BT_Code: New for Creator's Update - Bluetooth adapter has properties of the local BT radio.
+            var localAdapter = await BluetoothAdapter.GetDefaultAsync();
 
+            if (localAdapter != null)
+            {
+                return localAdapter.IsPeripheralRoleSupported;
+            }
+            else
+            {
+                // Bluetooth is not turned on 
+                return false;
+            }
+        }
         static async Task Main(string[] args)
         {
             GattServiceProvider serviceProvider = null;
@@ -58,6 +72,16 @@ namespace BLE
 
             }
             txCharacteristic.SubscribedClientsChanged += txCharacteristic_SubscribersChangedAsync;
+
+            
+            // TODO checking peripheral support. Later should be divided into a separate method in the rafactoring stage
+            if(!await CheckPeripheralRoleSupportAsync())
+            {
+                Console.WriteLine("Peripheral Mode unsupported. Press enter to close the app");
+                Console.ReadLine();
+                return;
+            }
+
             // BT_Code: Indicate if your sever advertises as connectable and discoverable.
             GattServiceProviderAdvertisingParameters advParameters = new GattServiceProviderAdvertisingParameters
             {
