@@ -72,7 +72,6 @@ namespace BLE
 
             }
             txCharacteristic.SubscribedClientsChanged += txCharacteristic_SubscribersChangedAsync;
-
             
             // TODO checking peripheral support. Later should be divided into a separate method in the rafactoring stage
             if(!await CheckPeripheralRoleSupportAsync())
@@ -93,21 +92,24 @@ namespace BLE
                 // of this service
                 IsDiscoverable = true
             };
+
             serviceProvider.StartAdvertising(advParameters);
             Console.WriteLine("Started advertising");
 
-            using Socket client = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
-            IPEndPoint ipEndPoint = new IPEndPoint(IPAddress.Parse("127.0.0.1"), 1337);
-            client.Connect(ipEndPoint);
-            var message = "Hi friends 👋!<|EOM|>";
-            var messageBytes = Encoding.UTF8.GetBytes(message);
-            client.Send(messageBytes);
-            //_ = await client.SendAsync(messageBytes, SocketFlags.None);
-            Console.WriteLine($"Socket client sent message: \"{message}\"");
-            client.Shutdown(SocketShutdown.Both);
+            //using Socket client = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
+            //IPEndPoint ipEndPoint = new IPEndPoint(IPAddress.Parse("127.0.0.1"), 1337);
+            //client.Connect(ipEndPoint);
+            //var message = "Hi friends 👋!<|EOM|>";
+            //var messageBytes = Encoding.UTF8.GetBytes(message);
+            //client.Send(messageBytes);
+            ////_ = await client.SendAsync(messageBytes, SocketFlags.None);
+            //Console.WriteLine($"Socket client sent message: \"{message}\"");
+            //client.Shutdown(SocketShutdown.Both);
 
 
-            while (true) { }
+            while (true) { 
+
+            }
         }
         private static async void rxCharacteristic_WriteRequestedAsync(GattLocalCharacteristic sender, GattWriteRequestedEventArgs args)
         {
@@ -136,6 +138,14 @@ namespace BLE
         private static async void txCharacteristic_SubscribersChangedAsync(GattLocalCharacteristic sender, object args)
         {
             Console.WriteLine($"Now there are {sender.SubscribedClients.Count} subscribers");
-        }
+            if (sender.SubscribedClients.Count >= 1)
+            {
+                GattSession tmpSession = sender.SubscribedClients[sender.SubscribedClients.Count - 1].Session;
+                if (tmpSession != null)
+                {
+                    Console.WriteLine($"{tmpSession.MaxPduSize} - max MTU size for device {tmpSession.DeviceId.Id}");
+                }
+            }
+        }    
     }
 }
