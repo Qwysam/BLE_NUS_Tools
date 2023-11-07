@@ -27,8 +27,8 @@ namespace BLE
                 Console.ReadLine();
                 return;
             }
-            while (true) { 
-
+            while (true) {
+                _ = Manager.socketManager.recieveInput();
             }
         }  
     }

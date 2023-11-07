@@ -11,7 +11,10 @@ namespace BLE
         private static GattLocalCharacteristic txCharacteristic;
         private static GattLocalCharacteristic rxCharacteristic;
         GattServiceProvider serviceProvider;
+
+        public socketManager socketManager;
         public async Task<bool> initializeManager(){
+            socketManager = new socketManager();
             GattServiceProviderResult serviceResult = await GattServiceProvider.CreateAsync(Constants.nordicServiceUuid);
             // BT_Code: Initialize and starting a custom GATT Service using GattServiceProvider.
 
