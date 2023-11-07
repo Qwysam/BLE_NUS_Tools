@@ -22,7 +22,7 @@ namespace BLE
         static async Task Main(string[] args)
         {
             connectionManager Manager = new connectionManager();
-            if(!Manager.initializeManager()&&Manager.StartAdvertising()){
+            if(! await Manager.initializeManager()|| ! await Manager.startAdvertising()){
                 Console.WriteLine("Initialization failed. Press enter to close the app");
                 Console.ReadLine();
                 return;

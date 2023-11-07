@@ -1,17 +1,20 @@
 ﻿using System;
+using System.Runtime.InteropServices.WindowsRuntime;
+using Windows.Devices.Bluetooth;
 using Windows.Devices.Bluetooth.GenericAttributeProfile;
+using Windows.Storage.Streams;
 
 namespace BLE
 {
     public class connectionManager
     {
-        private  GattLocalCharacteristic txCharacteristic;
-        private GattLocalCharacteristic rxCharacteristic;
+        private static GattLocalCharacteristic txCharacteristic;
+        private static GattLocalCharacteristic rxCharacteristic;
         GattServiceProvider serviceProvider;
-        public connectionManager(){
-        GattServiceProviderResult serviceResult = await GattServiceProvider.CreateAsync(Constants.nordicServiceUuid);
-        // BT_Code: Initialize and starting a custom GATT Service using GattServiceProvider.
-           
+        public async Task<bool> initializeManager(){
+            GattServiceProviderResult serviceResult = await GattServiceProvider.CreateAsync(Constants.nordicServiceUuid);
+            // BT_Code: Initialize and starting a custom GATT Service using GattServiceProvider.
+
             if (serviceResult.Error == BluetoothError.Success)
             {
                 serviceProvider = serviceResult.ServiceProvider;
@@ -20,9 +23,10 @@ namespace BLE
             else
             {
                 Console.WriteLine("Initialization failed");
+                return false;
             }
-        }
-        public bool initializeManager(){
+
+
             GattLocalCharacteristicResult result = await serviceProvider.Service.CreateCharacteristicAsync(Constants.nordicRXCharacteristicUuid, Constants.gattNUSRX);
             if (result.Error == BluetoothError.Success)
             {
@@ -47,10 +51,10 @@ namespace BLE
 
             }
             txCharacteristic.SubscribedClientsChanged += txCharacteristic_SubscribersChangedAsync;
-            
 
+            return true;
         }
-        public bool startAdvertising(){
+        public async Task<bool> startAdvertising(){
             if(!await CheckPeripheralRoleSupportAsync())
             {
                 Console.WriteLine("Peripheral Mode unsupported.");

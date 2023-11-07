@@ -1,4 +1,6 @@
 ﻿using System;
+using System.Net;
+using System.Net.Sockets;
 using Windows.Devices.Bluetooth.GenericAttributeProfile;
 
 namespace BLE
@@ -11,10 +13,11 @@ namespace BLE
         public socketManager(){
             IPEndPoint ipEndPoint = new IPEndPoint(IPAddress.Parse("127.0.0.1"), 1337);
             client.Connect(ipEndPoint);
+            
         }  
-        public bool send(byte[] info){
-            client.Send(messageBytes);
-            _ = await client.SendAsync(messageBytes, SocketFlags.None);
+        public async void send(byte[] info){
+            client.Send(info);
+            _ = await client.SendAsync(info, SocketFlags.None);
         }
         ~socketManager(){
             client.Shutdown(SocketShutdown.Both);
