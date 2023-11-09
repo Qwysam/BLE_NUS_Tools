@@ -13,6 +13,7 @@ using BLE;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
+using BLE_NUS_Tools;
 
 namespace BLE
 {
@@ -21,15 +22,27 @@ namespace BLE
 
         static async Task Main(string[] args)
         {
+            byte[] test = new byte[3];
+            test[0] = 0x00;
+            test[1] = 0x00;
+            test[2] = 0x12;
+            byte[] res = Commands.cmdInfoConc(test, Encoding.UTF8.GetBytes("AT+HELLO Hello Sun"));
             connectionManager Manager = new connectionManager();
             if(! await Manager.initializeManager()|| ! await Manager.startAdvertising()){
                 Console.WriteLine("Initialization failed. Press enter to close the app");
                 Console.ReadLine();
                 return;
             }
-            while (true) {
-                _ = Manager.socketManager.recieveInput();
-            }
+            Manager.handleInput(res);
+            //Manager.socketManager.send(Commands.formatCommand(socketStream.Internal,sentCommands.sucess));
+            //while (true) {
+            //    byte[] tmp = Manager.socketManager.recieveInput().Result;
+            //    if (tmp != null)
+            //    {
+            //        Manager.handleInput(tmp);
+            //        tmp = null;
+            //    }
+            //}
         }  
     }
 }

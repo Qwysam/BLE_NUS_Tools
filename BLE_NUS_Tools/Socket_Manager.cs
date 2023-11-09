@@ -22,21 +22,35 @@ namespace BLE
             socket.Send(info);
             _ = await socket.SendAsync(info, SocketFlags.None);
         }
-        public async Task recieveInput()
+        //Needs testing
+        public async Task<byte[]> recieveInput()
         {
-            var buffer = new byte[1_024];
+            var buffer = new byte[65535];
             await socket.ReceiveAsync(buffer);
             Console.WriteLine("Message from socket:");
-            string res = Encoding.UTF8.GetString(buffer).Trim('\0');
-            Console.WriteLine(res);
-            res = res.Trim('\n');
-            if (res == "Hello")
-                await socket.SendAsync(Encoding.UTF8.GetBytes("Please kill me"));
-            if(res =="Fuck you")
-                await socket.SendAsync(Encoding.UTF8.GetBytes("No, fuck you"));
+            byte[] payloadSize = new byte[2];
+            payloadSize[0] = buffer[1];
+            payloadSize[1] = buffer[2];
+            byte[] result = new byte[ConvertBigEndianBytesToInt(payloadSize)+3];
+            Array.Copy(buffer,0,result,0,result.Length);
+            return result;
+
         }
         ~socketManager(){
             socket.Shutdown(SocketShutdown.Both);
+        }
+
+        private static int ConvertBigEndianBytesToInt(byte[] bytes)
+        {
+            // Make a copy of the array and reverse it to little-endian order
+            byte[] reversedBytes = new byte[bytes.Length];
+            Array.Copy(bytes, reversedBytes, bytes.Length);
+            Array.Reverse(reversedBytes);
+
+            // Convert the reversed array to an integer
+            int result = BitConverter.ToInt16(reversedBytes, 0);
+
+            return result;
         }
     }
 }

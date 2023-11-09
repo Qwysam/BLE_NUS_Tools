@@ -1,5 +1,7 @@
-﻿using System;
+﻿using BLE_NUS_Tools;
+using System;
 using System.Runtime.InteropServices.WindowsRuntime;
+using System.Text;
 using Windows.Devices.Bluetooth;
 using Windows.Devices.Bluetooth.GenericAttributeProfile;
 using Windows.Storage.Streams;
@@ -131,7 +133,37 @@ namespace BLE
                     Console.WriteLine($"{tmpSession.MaxPduSize} - max MTU size for device {tmpSession.DeviceId.Id}");
                 }
             }
-        }  
+        }
+
+        public void handleInput(byte[] input)
+        {
+            //parse only payload from byte array    later divide into a separate method
+            string payload = Encoding.UTF8.GetString(input, 3, input.Length-3);
+            if (input[0] == socketStream.Internal)
+                handleInpputCommand(payload);
+            if (input[0] == socketStream.Data)
+                handleInpputData(payload);
+        }
+
+        //Method to handle input commands from the server
+        private void handleInpputCommand(string payload)
+        {
+            //test comms
+            if(payload.Contains(receivedCommands.commTestSTR)) 
+            {
+                //response test
+                byte[] text = Encoding.UTF8.GetBytes("Hello Moon");
+                //add command code to the text
+                byte[] res = Commands.cmdInfoConc(sentCommands.commsTest, text);
+                socketManager.send(Commands.formatCommand(socketStream.Internal, res));
+            }
+        }
+        //Method to transfer data from server to bluetooth characteristic
+        private void handleInpputData(string payload)
+        {
+
+        }
+
 
     }
 }
