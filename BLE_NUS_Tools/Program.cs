@@ -35,8 +35,9 @@ namespace BLE
             }
             Manager.handleInput(res);
             //Manager.socketManager.send(Commands.formatCommand(socketStream.Internal,sentCommands.sucess));
+            //byte[] tmp;
             //while (true) {
-            //    byte[] tmp = Manager.socketManager.recieveInput().Result;
+            //    tmp = Manager.socketManager.recieveInput().Result;
             //    if (tmp != null)
             //    {
             //        Manager.handleInput(tmp);
