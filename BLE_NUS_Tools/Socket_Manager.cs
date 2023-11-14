@@ -2,6 +2,7 @@
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
+using System.Text.Json;
 using Windows.Devices.Bluetooth.GenericAttributeProfile;
 
 namespace BLE
@@ -23,17 +24,39 @@ namespace BLE
             _ = await socket.SendAsync(info, SocketFlags.None);
         }
         //Needs testing
-        public async Task<byte[]> recieveInput()
+        public async Task<JsonDocument> recieveInput()
         {
-            var buffer = new byte[65535];
-            await socket.ReceiveAsync(buffer);
-            Console.WriteLine("Message from socket:");
-            byte[] payloadSize = new byte[2];
-            payloadSize[0] = buffer[1];
-            payloadSize[1] = buffer[2];
-            byte[] result = new byte[ConvertBigEndianBytesToInt(payloadSize)+3];
-            Array.Copy(buffer,0,result,0,result.Length);
+            var bufferSize = 65535;
+            var buffer = new byte[bufferSize];
+
+            // Read data from the socket
+            int bytesRead = await socket.ReceiveAsync(buffer, SocketFlags.None);
+
+            // Check if no data was received
+            if (bytesRead == 0)
+            {
+                // Handle the case where the connection was closed
+                // or no data was received
+                return null;
+            }
+
+            // Create a new buffer to hold only the received bytes
+            byte[] receivedData = new byte[bytesRead];
+            Array.Copy(buffer, receivedData, bytesRead);
+
+            // Parse the received JSON data
+            JsonDocument result = JsonDocument.Parse(receivedData);
+
+            // You can now use 'result' for further processing
+
             return result;
+
+            //outdated code for byte operations
+            //byte[] payloadSize = new byte[2];
+            //payloadSize[0] = buffer[1];
+            //payloadSize[1] = buffer[2];
+            //byte[] result = new byte[ConvertBigEndianBytesToInt(payloadSize)+3];
+            //Array.Copy(buffer,0,result,0,result.Length);
 
         }
         ~socketManager(){

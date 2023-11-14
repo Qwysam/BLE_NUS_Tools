@@ -2,6 +2,7 @@
 using System;
 using System.Runtime.InteropServices.WindowsRuntime;
 using System.Text;
+using System.Text.Json;
 using Windows.Devices.Bluetooth;
 using Windows.Devices.Bluetooth.GenericAttributeProfile;
 using Windows.Storage.Streams;
@@ -135,16 +136,40 @@ namespace BLE
             }
         }
 
-        public void handleInput(byte[] input)
+        public void handleInput(JsonDocument doc)
         {
             //parse only payload from byte array    later divide into a separate method
-            string payload = Encoding.UTF8.GetString(input, 3, input.Length-3);
-            if (input[0] == socketStream.Internal)
-                handleInpputCommand(payload);
-            if (input[0] == socketStream.Data)
-                handleInpputData(payload);
-        }
+            //string payload = Encoding.UTF8.GetString(input, 3, input.Length-3);
+            //if (input[0] == socketStream.Internal)
+            //    handleInpputCommand(payload);
+            //if (input[0] == socketStream.Data)
+            //    handleInpputData(payload);
 
+            JsonElement data, command;
+            if(doc.RootElement.TryGetProperty("datapipe", out data))
+            {
+                Console.WriteLine("Datapipe detected");
+                handleInpputData(data);
+            }
+            if(doc.RootElement.TryGetProperty("internal", out command))
+            {
+                Console.WriteLine("Command detected");
+                handleInpputCommand(command);
+            }
+        }
+        private void handleInpputCommand(JsonElement command)
+        {
+            switch (command.GetString())
+            {
+                case "mtu?":
+                    break;
+                case "hello":
+                    JsonDocument jsonDocument = JsonDocument.Parse("{\"response\": 0}");
+                    socketManager.send(Encoding.UTF8.GetBytes(jsonDocument.RootElement.GetRawText()));
+                    Console.WriteLine(jsonDocument.RootElement.GetRawText());
+                    break;
+            }
+        }
         //Method to handle input commands from the server
         private void handleInpputCommand(string payload)
         {
@@ -159,7 +184,7 @@ namespace BLE
             }
         }
         //Method to transfer data from server to bluetooth characteristic
-        private void handleInpputData(string payload)
+        private void handleInpputData(JsonElement data)
         {
 
         }
