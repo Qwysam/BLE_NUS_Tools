@@ -21,7 +21,6 @@ namespace BLE
         }  
         public async void send(byte[] info){
             socket.Send(info);
-            _ = await socket.SendAsync(info, SocketFlags.None);
         }
         //Needs testing
         public async Task<JsonDocument> recieveInput()
