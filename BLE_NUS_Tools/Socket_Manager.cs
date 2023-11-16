@@ -19,7 +19,7 @@ namespace BLE
             Console.WriteLine(ex.Message);
             }
         }  
-        public async void send(byte[] info){
+        public void send(byte[] info){
             socket.Send(info);
         }
         //Needs testing

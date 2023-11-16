@@ -149,15 +149,15 @@ namespace BLE
             if(doc.RootElement.TryGetProperty("datapipe", out data))
             {
                 Console.WriteLine("Datapipe detected");
-                handleInpputData(data);
+                handleInputData(data);
             }
             if(doc.RootElement.TryGetProperty("internal", out command))
             {
                 Console.WriteLine("Command detected");
-                handleInpputCommand(command);
+                handleInputCommand(command);
             }
         }
-        private void handleInpputCommand(JsonElement command)
+        private void handleInputCommand(JsonElement command)
         {
             switch (command.GetString())
             {
@@ -171,7 +171,7 @@ namespace BLE
             }
         }
         //Method to handle input commands from the server
-        private void handleInpputCommand(string payload)
+        private void handleInputCommand(string payload)
         {
             //test comms
             if(payload.Contains(receivedCommands.commTestSTR)) 
@@ -184,11 +184,15 @@ namespace BLE
             }
         }
         //Method to transfer data from server to bluetooth characteristic
-        private void handleInpputData(JsonElement data)
+        private async void handleInputData(JsonElement data)
         {
-
+            JsonElement payload;
+            if(data.TryGetProperty("payload", out payload))
+            {
+                byte[] arr = Encoding.UTF8.GetBytes(payload.GetRawText());
+                await txCharacteristic.NotifyValueAsync(arr.AsBuffer());
+            }
         }
-
 
     }
 }
