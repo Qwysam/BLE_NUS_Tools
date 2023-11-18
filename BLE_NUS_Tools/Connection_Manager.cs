@@ -14,6 +14,8 @@ namespace BLE
         private static GattLocalCharacteristic txCharacteristic;
         private static GattLocalCharacteristic rxCharacteristic;
         GattServiceProvider serviceProvider;
+        static int MTU;
+        bool readCycleActive = false, writeCycleActive = false;
 
         public socketManager socketManager;
         public async Task<bool> initializeManager(){
@@ -117,7 +119,7 @@ namespace BLE
                 var reader = DataReader.FromBuffer(request.Value);
                 reader.ByteOrder = ByteOrder.LittleEndian;
                 string val = reader.ReadString(requestLength);
-                byte[] arr = System.Text.Encoding.UTF8.GetBytes(val);
+                byte[] arr = Encoding.UTF8.GetBytes(val);
                 await txCharacteristic.NotifyValueAsync(arr.AsBuffer());
                 Console.WriteLine(val);
             }
@@ -132,6 +134,8 @@ namespace BLE
                 if (tmpSession != null)
                 {
                     Console.WriteLine($"{tmpSession.MaxPduSize} - max MTU size for device {tmpSession.DeviceId.Id}");
+                    MTU = tmpSession.MaxPduSize;
+                    //
                 }
             }
         }
@@ -186,13 +190,42 @@ namespace BLE
         //Method to transfer data from server to bluetooth characteristic
         private async void handleInputData(JsonElement data)
         {
+            if (MTU == 0)
+                return;
+            // TODO add condition for Base64 encoding
             JsonElement payload;
             if(data.TryGetProperty("payload", out payload))
             {
-                byte[] arr = Encoding.UTF8.GetBytes(payload.GetRawText());
-                await txCharacteristic.NotifyValueAsync(arr.AsBuffer());
+                int packageSize = MTU - 3;
+                byte[] received = Encoding.UTF8.GetBytes(payload.GetRawText());
+                received = received.Skip(1).Take(received.Length - 2).ToArray();
+                byte[] transfer = new byte[received.Length+2];
+                byte[] sizeEncoding = lengthToBigEndian(transfer.Length-2);
+                Array.Copy(sizeEncoding,transfer, sizeEncoding.Length);
+                Array.Copy(received, 0, transfer,2, received.Length);
+                int numberOfChunks = (int)Math.Ceiling((double)transfer.Length / packageSize);
+
+                for (int i = 0; i < numberOfChunks; i++)
+                {
+                    int offset = i * packageSize;
+                    int chunkSize = Math.Min(packageSize, transfer.Length - offset);
+                    byte[] chunk = new byte[chunkSize];
+                    System.Buffer.BlockCopy(transfer, offset, chunk, 0, chunkSize);
+
+                    await txCharacteristic.NotifyValueAsync(chunk.AsBuffer());
+                }
             }
         }
 
+        public JsonDocument recieveInput()
+        {
+            return socketManager.recieveInput().Result;
+        }
+        private static byte[] lengthToBigEndian(int length)
+        {
+            byte[] byteArray = BitConverter.GetBytes((ushort)length);
+            Array.Reverse(byteArray);
+            return byteArray;
+        }
     }
 }
