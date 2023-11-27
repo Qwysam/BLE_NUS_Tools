@@ -1,5 +1,4 @@
 ﻿using BLE_NUS_Tools;
-using System;
 using System.Runtime.InteropServices.WindowsRuntime;
 using System.Text;
 using System.Text.Json;

@@ -1,20 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Threading.Tasks;
-using Windows.ApplicationModel.Core;
-using Windows.Devices.Bluetooth;
-using Windows.Devices.Bluetooth.GenericAttributeProfile;
-using Windows.Foundation;
-using Windows.Storage.Streams;
-using Microsoft.VisualBasic;
-using System.Runtime.InteropServices.WindowsRuntime;
-using static System.Runtime.InteropServices.JavaScript.JSType;
-using BLE;
-using System.Net;
-using System.Net.Sockets;
-using System.Text;
-using BLE_NUS_Tools;
-using System.Text.Json;
+﻿using System.Text.Json;
 
 namespace BLE
 {

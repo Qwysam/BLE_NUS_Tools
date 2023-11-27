@@ -1,9 +1,6 @@
-﻿using System;
-using System.Net;
+﻿using System.Net;
 using System.Net.Sockets;
-using System.Text;
 using System.Text.Json;
-using Windows.Devices.Bluetooth.GenericAttributeProfile;
 
 namespace BLE
 {
