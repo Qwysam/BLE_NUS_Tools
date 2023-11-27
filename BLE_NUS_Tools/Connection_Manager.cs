@@ -81,10 +81,17 @@ namespace BLE
             serviceProvider.StartAdvertising(advParameters);
             Console.WriteLine("Started advertising");
             return true;
+
+        }
+        public async Task<bool> stopAdvertising()
+        {
+            serviceProvider.StopAdvertising();
+            Console.WriteLine("Stopped advertising");
+            return true;
         }
 
 
-        private static async Task<bool> CheckPeripheralRoleSupportAsync()
+            private static async Task<bool> CheckPeripheralRoleSupportAsync()
         {
             // BT_Code: New for Creator's Update - Bluetooth adapter has properties of the local BT radio.
             var localAdapter = await BluetoothAdapter.GetDefaultAsync();
@@ -124,9 +131,11 @@ namespace BLE
             }
         }
 
-        private static async void txCharacteristic_SubscribersChangedAsync(GattLocalCharacteristic sender, object args)
+        private async void txCharacteristic_SubscribersChangedAsync(GattLocalCharacteristic sender, object args)
         {
             Console.WriteLine($"Now there are {sender.SubscribedClients.Count} subscribers");
+            JsonDocument subscriberNotification = JsonDocument.Parse($"{{\"internal\": {sender.SubscribedClients.Count}}}");
+            socketManager.send(Encoding.UTF8.GetBytes(subscriberNotification.RootElement.GetRawText()));
             if (sender.SubscribedClients.Count >= 1)
             {
                 GattSession tmpSession = sender.SubscribedClients[sender.SubscribedClients.Count - 1].Session;
@@ -134,12 +143,11 @@ namespace BLE
                 {
                     Console.WriteLine($"{tmpSession.MaxPduSize} - max MTU size for device {tmpSession.DeviceId.Id}");
                     MTU = tmpSession.MaxPduSize;
-                    //
                 }
             }
         }
 
-        public void handleInput(JsonDocument doc)
+        public async Task handleInput(JsonDocument doc)
         {
             //parse only payload from byte array    later divide into a separate method
             //string payload = Encoding.UTF8.GetString(input, 3, input.Length-3);
@@ -157,19 +165,45 @@ namespace BLE
             if(doc.RootElement.TryGetProperty("internal", out command))
             {
                 Console.WriteLine("Command detected");
-                handleInputCommand(command);
+                await handleInputCommandAsync(command);
             }
         }
-        private void handleInputCommand(JsonElement command)
+        private async Task handleInputCommandAsync(JsonElement command)
         {
+            JsonDocument jsonResponse;
             switch (command.GetString())
             {
                 case "mtu?":
+                    //return MTU - 3 service bytes
+                    jsonResponse = JsonDocument.Parse($"{{\"response\": {MTU-3}}}");
+                    socketManager.send(Encoding.UTF8.GetBytes(jsonResponse.RootElement.GetRawText()));
                     break;
                 case "hello":
-                    JsonDocument jsonDocument = JsonDocument.Parse("{\"response\": 0}");
-                    socketManager.send(Encoding.UTF8.GetBytes(jsonDocument.RootElement.GetRawText()));
-                    Console.WriteLine(jsonDocument.RootElement.GetRawText());
+                    jsonResponse = JsonDocument.Parse("{\"response\": 0}");
+                    socketManager.send(Encoding.UTF8.GetBytes(jsonResponse.RootElement.GetRawText()));
+                    break;
+                case "startadv":
+                    if (!await startAdvertising())
+                    {
+                        jsonResponse = JsonDocument.Parse("{\"response\": 2}");
+                        socketManager.send(Encoding.UTF8.GetBytes(jsonResponse.RootElement.GetRawText()));
+                    }
+                    else
+                    {
+                        jsonResponse = JsonDocument.Parse("{\"response\": 0}");
+                        socketManager.send(Encoding.UTF8.GetBytes(jsonResponse.RootElement.GetRawText()));
+                    }
+                    break;
+                case "stopadv":
+                    if (!await stopAdvertising())
+                    {
+                        //Handle error response?
+                    }
+                    else
+                    {
+                        jsonResponse = JsonDocument.Parse("{\"response\": 0}");
+                        socketManager.send(Encoding.UTF8.GetBytes(jsonResponse.RootElement.GetRawText()));
+                    }
                     break;
             }
         }

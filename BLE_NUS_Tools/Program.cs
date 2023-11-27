@@ -8,7 +8,7 @@ namespace BLE
         static async Task Main(string[] args)
         {
             connectionManager Manager = new connectionManager();
-            if(! await Manager.initializeManager()|| ! await Manager.startAdvertising()){
+            if(! await Manager.initializeManager()){
                 Console.WriteLine("Initialization failed. Press enter to close the app");
                 Console.ReadLine();
                 return;
@@ -18,7 +18,7 @@ namespace BLE
                 JsonDocument tmp = Manager.socketManager.recieveInput().Result;
                 if (tmp != null)
                 {
-                    Manager.handleInput(tmp);
+                    await Manager.handleInput(tmp);
                     tmp = null;
                 }
             }
