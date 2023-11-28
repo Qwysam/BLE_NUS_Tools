@@ -134,7 +134,7 @@ namespace BLE
         private async void txCharacteristic_SubscribersChangedAsync(GattLocalCharacteristic sender, object args)
         {
             Console.WriteLine($"Now there are {sender.SubscribedClients.Count} subscribers");
-            JsonDocument subscriberNotification = JsonDocument.Parse($"{{\"internal\": {sender.SubscribedClients.Count}}}");
+            JsonDocument subscriberNotification = JsonDocument.Parse($"{{\"internal\": subscribers {sender.SubscribedClients.Count}}}");
             socketManager.send(Encoding.UTF8.GetBytes(subscriberNotification.RootElement.GetRawText()));
             if (sender.SubscribedClients.Count >= 1)
             {
