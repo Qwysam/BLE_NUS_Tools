@@ -126,7 +126,6 @@ namespace BLE
                 reader.ByteOrder = ByteOrder.LittleEndian;
                 string val = reader.ReadString(requestLength);
                 byte[] arr = Encoding.UTF8.GetBytes(val);
-                await txCharacteristic.NotifyValueAsync(arr.AsBuffer());
                 Console.WriteLine(val);
             }
         }
