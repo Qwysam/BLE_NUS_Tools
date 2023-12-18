@@ -7,15 +7,44 @@ namespace BLE
     public class socketManager
     {
         Socket socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
-        string ip = "127.0.0.1";
-        int port = 1337;
+        string default_ip = "127.0.0.1";
+        int default_port = 1337;
         public socketManager(){
-            IPEndPoint ipEndPoint = new IPEndPoint(IPAddress.Parse("127.0.0.1"), 1337);
+            IPEndPoint ipEndPoint = new IPEndPoint(IPAddress.Parse(default_ip), default_port);
             try { socket.Connect(ipEndPoint); }
             catch (Exception ex) {
             Console.WriteLine(ex.Message);
             }
-        }  
+        }
+
+        public socketManager(string custom_ip)
+        {
+            IPEndPoint ipEndPoint = new IPEndPoint(IPAddress.Parse(custom_ip), default_port);
+            try { socket.Connect(ipEndPoint); }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex.Message);
+            }
+        }
+        public socketManager(int custom_port)
+        {
+            IPEndPoint ipEndPoint = new IPEndPoint(IPAddress.Parse(default_ip), custom_port);
+            try { socket.Connect(ipEndPoint); }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex.Message);
+            }
+        }
+
+        public socketManager(string custom_ip,int custom_port)
+        {
+            IPEndPoint ipEndPoint = new IPEndPoint(IPAddress.Parse(custom_ip), custom_port);
+            try { socket.Connect(ipEndPoint); }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex.Message);
+            }
+        }
         public void send(byte[] info){
             socket.Send(info);
         }

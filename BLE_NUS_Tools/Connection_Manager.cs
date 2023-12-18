@@ -18,8 +18,23 @@ namespace BLE
         static string readBuffer = "";
 
         public socketManager socketManager;
-        public async Task<bool> initializeManager(){
-            socketManager = new socketManager();
+        public async Task<bool> initializeManager(string custom_ip, int custom_port){
+            //check for launch parameters
+            if (custom_ip == "null")
+            {
+                if (custom_port == -1)
+                    socketManager = new socketManager();
+                else
+                    socketManager = new socketManager(custom_port);
+            }
+            else
+            {
+                if (custom_port != -1)
+                    socketManager = new socketManager(custom_ip, custom_port);
+                else
+                    socketManager = new socketManager(custom_ip);
+            }
+
             GattServiceProviderResult serviceResult = await GattServiceProvider.CreateAsync(Constants.nordicServiceUuid);
             // BT_Code: Initialize and starting a custom GATT Service using GattServiceProvider.
 
