@@ -14,7 +14,8 @@ namespace BLE
         private static GattLocalCharacteristic rxCharacteristic;
         GattServiceProvider serviceProvider;
         static int MTU;
-        bool readCycleActive = false, writeCycleActive = false;
+        static int currentReadCycle = 0, totalReadCycles = 0;
+        static string readBuffer = "";
 
         public socketManager socketManager;
         public async Task<bool> initializeManager(){
@@ -107,7 +108,8 @@ namespace BLE
             }
         }
 
-        private static async void rxCharacteristic_WriteRequestedAsync(GattLocalCharacteristic sender, GattWriteRequestedEventArgs args)
+        // method to collect data from the board and then send it via a port
+        private async void rxCharacteristic_WriteRequestedAsync(GattLocalCharacteristic sender, GattWriteRequestedEventArgs args)
         {
             // BT_Code: Processing a write request.
             using (args.GetDeferral())
@@ -123,18 +125,46 @@ namespace BLE
                 uint requestLength = request.Value.Length;
                 Console.WriteLine($"Write to RX requested of {requestLength} bytes.");
                 var reader = DataReader.FromBuffer(request.Value);
-                reader.ByteOrder = ByteOrder.LittleEndian;
-                string val = reader.ReadString(requestLength);
-                byte[] arr = Encoding.UTF8.GetBytes(val);
-                await txCharacteristic.NotifyValueAsync(arr.AsBuffer());
-                Console.WriteLine(val);
+                //first chunk of the package
+                if(currentReadCycle == 0)
+                {
+                    reader.ByteOrder = ByteOrder.LittleEndian;
+                    byte[] bytes = new byte[requestLength];
+                    reader.ReadBytes(bytes);
+                    int length = BitConverter.ToInt16(bytes.Take(2).ToArray(), 0);
+                    int packageSize = MTU - 3;
+                    totalReadCycles = (int)Math.Ceiling((double)length / packageSize);
+                    readBuffer += Encoding.UTF8.GetString(bytes.Skip(2).ToArray());
+                    currentReadCycle++;
+                    return;
+                }
+                //last chunk of the package
+                if (currentReadCycle == totalReadCycles - 1)
+                {
+                    byte[] bytes = new byte[requestLength];
+                    reader.ReadBytes(bytes);
+                    readBuffer += Encoding.UTF8.GetString(bytes);
+                    currentReadCycle = 0;
+                    totalReadCycles = 0;
+                    socketManager.send(Encoding.UTF8.GetBytes(readBuffer));
+                    return;
+                }
+
+                //standart chunk reading
+                byte[] chunk = new byte[requestLength];
+                reader.ReadBytes(chunk);
+                readBuffer += Encoding.UTF8.GetString(chunk);
+                currentReadCycle++;
+                //data display for debugging
+                //await txCharacteristic.NotifyValueAsync(arr.AsBuffer());
+                //Console.WriteLine(val);
             }
         }
 
         private async void txCharacteristic_SubscribersChangedAsync(GattLocalCharacteristic sender, object args)
         {
             Console.WriteLine($"Now there are {sender.SubscribedClients.Count} subscribers");
-            JsonDocument subscriberNotification = JsonDocument.Parse($"{{\"internal\": {sender.SubscribedClients.Count}}}");
+            JsonDocument subscriberNotification = JsonDocument.Parse($"{{\"internal\": subscribers {sender.SubscribedClients.Count}}}");
             socketManager.send(Encoding.UTF8.GetBytes(subscriberNotification.RootElement.GetRawText()));
             if (sender.SubscribedClients.Count >= 1)
             {
