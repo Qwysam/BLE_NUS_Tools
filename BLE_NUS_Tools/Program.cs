@@ -23,7 +23,6 @@ namespace BLE
                 Console.ReadLine();
                 return;
             }
-            //Manager.socketManager.send(Commands.formatCommand(socketStream.Internal,sentCommands.sucess));
             while (true) {
                 JsonDocument tmp = Manager.socketManager.recieveInput().Result;
                 if (tmp != null)

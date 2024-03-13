@@ -19,7 +19,7 @@ namespace BLE_NUS_Tools
         public static byte[] subCount = Encoding.UTF8.GetBytes("AT+SUB");
 
     }
-    //Commands to be received to the python app
+    //Commands to be received from the python app
     public struct receivedCommands 
     {
         public static byte[] sucess = Encoding.UTF8.GetBytes("AT+OK");

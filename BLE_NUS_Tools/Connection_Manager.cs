@@ -83,7 +83,7 @@ namespace BLE
                 Console.WriteLine("Peripheral Mode unsupported.");
                 return false;
             }
-                        // BT_Code: Indicate if your sever advertises as connectable and discoverable.
+            // BT_Code: Indicate if your sever advertises as connectable and discoverable.
             GattServiceProviderAdvertisingParameters advParameters = new GattServiceProviderAdvertisingParameters
             {
                 // IsConnectable determines whether a call to publish will attempt to start advertising and 
@@ -175,7 +175,8 @@ namespace BLE
                 //Console.WriteLine(val);
             }
         }
-
+        //method updating the number of subscribers
+        //currently designed to share the MTU of the last subscriber
         private async void txCharacteristic_SubscribersChangedAsync(GattLocalCharacteristic sender, object args)
         {
             Console.WriteLine($"Now there are {sender.SubscribedClients.Count} subscribers");
@@ -192,14 +193,9 @@ namespace BLE
             }
         }
 
+        //determines if the recieved input is data or a command
         public async Task handleInput(JsonDocument doc)
         {
-            //parse only payload from byte array    later divide into a separate method
-            //string payload = Encoding.UTF8.GetString(input, 3, input.Length-3);
-            //if (input[0] == socketStream.Internal)
-            //    handleInpputCommand(payload);
-            //if (input[0] == socketStream.Data)
-            //    handleInpputData(payload);
 
             JsonElement data, command;
             if(doc.RootElement.TryGetProperty("datapipe", out data))
@@ -213,6 +209,8 @@ namespace BLE
                 await handleInputCommandAsync(command);
             }
         }
+
+        //handles input if it is a command
         private async Task handleInputCommandAsync(JsonElement command)
         {
             JsonDocument jsonResponse;
@@ -223,10 +221,12 @@ namespace BLE
                     jsonResponse = JsonDocument.Parse($"{{\"response\": {MTU-3}}}");
                     socketManager.send(Encoding.UTF8.GetBytes(jsonResponse.RootElement.GetRawText()));
                     break;
+                //communication test
                 case "hello":
                     jsonResponse = JsonDocument.Parse("{\"response\": 0}");
                     socketManager.send(Encoding.UTF8.GetBytes(jsonResponse.RootElement.GetRawText()));
                     break;
+                //attempts to start advertising and sends a corresponding code based on the result through the socket
                 case "startadv":
                     if (!await startAdvertising())
                     {
@@ -253,6 +253,7 @@ namespace BLE
             }
         }
         //Method to handle input commands from the server
+        //Potentially redundant, might get removed when the protocol is finalised
         private void handleInputCommand(string payload)
         {
             //test comms
@@ -274,6 +275,7 @@ namespace BLE
             JsonElement payload;
             if(data.TryGetProperty("payload", out payload))
             {
+                //divides the payload into chunks of maximum possible size and sends them consecutively
                 int packageSize = MTU - 3;
                 byte[] received = Encoding.UTF8.GetBytes(payload.GetRawText());
                 received = received.Skip(1).Take(received.Length - 2).ToArray();
@@ -299,6 +301,7 @@ namespace BLE
         {
             return socketManager.recieveInput().Result;
         }
+        //used to indicate array length in the format specified by protocol
         private static byte[] lengthToBigEndian(int length)
         {
             byte[] byteArray = BitConverter.GetBytes((ushort)length);
