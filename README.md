@@ -19,10 +19,29 @@ Also, because this software is not a standalone program, it allows any developer
 
 
 ## 🛠️ Installation and running
-
+1) The repository needs to be cloned, using the git clone command.
+2) The source code needs to be compiled, using a standalone .Net compiler or an IDE.
+3) The application should be launched through the terminal with or without the launch parameters(custom IP adress and custom port)
 
 ## 📨 Data exchange format
+  Board-App Exchange
+Data exchanges between the board and the app happen in UTF-8 formatted JSON strings with first two bytes of the first chunk representing the length of the whole string in the Big Endian format. This is done because the JSON string is usually bigger then the MTU(Maximum Transmission Unit) and needs to be sent in several chunks, which are accumulated and concatenated by the app. The information from the board gets passed directly to the server application(not included in the repository).
 
+  App-Server Exchange
+Data exchange between the server and the app also happens in a UTF-8 JSON format. There are two tags a server can use: "internal" to transfer commands and "datapipe" to transfer data directly to the board. To each command the app will generate and send to the server information in the "response" tag.
+
+Supported Command Table
+
+| Request                                        | Payload                           | Possible response  | Payload |
+| ---------------------------------------------- | --------------------------------- | ------------------ | ------- |
+| [SRV] Start advertising                        | “startadv”                        | [CLN] Started OK   | 0       |
+||| [CLN] Periph mode not supported                | 2                                 |
+| [SRV] Stop advertising                         | “stopadv”                         | [CLN] Stopped OK   | 0       |
+| [CLN] Subscribers count changed                | “subscribers N” where N is number | [SRV] Acknowledged | 0       |
+||| [SRV] Wrong subscribers’ number (generic FAIL) | 1                                 |
+| [SRV] Ask for negotiated MTU                   | “mtu?”                            | [CLN] MTU Value    | 1-N     |
+||| [CLN] FAIL (for example, no active connection) | 0                                 |
+| [SRV] Hello (general comms test)               | “hello”                           | [CLN] Hello        | “0”     |
 
 ## 📃 Licensing
 The project is licensed under MIT License. Refer to the LICENSE file included in this repository for more details.
