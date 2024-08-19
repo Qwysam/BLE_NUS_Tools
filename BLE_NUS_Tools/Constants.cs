@@ -1,5 +1,4 @@
-﻿using System;
-using Windows.Devices.Bluetooth.GenericAttributeProfile;
+﻿using Windows.Devices.Bluetooth.GenericAttributeProfile;
 
 namespace BLE
 {

@@ -1,5 +1,4 @@
 ﻿using BLE_NUS_Tools;
-using System;
 using System.Runtime.InteropServices.WindowsRuntime;
 using System.Text;
 using System.Text.Json;
@@ -15,11 +14,27 @@ namespace BLE
         private static GattLocalCharacteristic rxCharacteristic;
         GattServiceProvider serviceProvider;
         static int MTU;
-        bool readCycleActive = false, writeCycleActive = false;
+        static int currentReadCycle = 0, totalReadCycles = 0;
+        static string readBuffer = "";
 
         public socketManager socketManager;
-        public async Task<bool> initializeManager(){
-            socketManager = new socketManager();
+        public async Task<bool> initializeManager(string custom_ip, int custom_port){
+            //check for launch parameters
+            if (custom_ip == "null")
+            {
+                if (custom_port == -1)
+                    socketManager = new socketManager();
+                else
+                    socketManager = new socketManager(custom_port);
+            }
+            else
+            {
+                if (custom_port != -1)
+                    socketManager = new socketManager(custom_ip, custom_port);
+                else
+                    socketManager = new socketManager(custom_ip);
+            }
+
             GattServiceProviderResult serviceResult = await GattServiceProvider.CreateAsync(Constants.nordicServiceUuid);
             // BT_Code: Initialize and starting a custom GATT Service using GattServiceProvider.
 
@@ -68,7 +83,7 @@ namespace BLE
                 Console.WriteLine("Peripheral Mode unsupported.");
                 return false;
             }
-                        // BT_Code: Indicate if your sever advertises as connectable and discoverable.
+            // BT_Code: Indicate if your sever advertises as connectable and discoverable.
             GattServiceProviderAdvertisingParameters advParameters = new GattServiceProviderAdvertisingParameters
             {
                 // IsConnectable determines whether a call to publish will attempt to start advertising and 
@@ -82,10 +97,17 @@ namespace BLE
             serviceProvider.StartAdvertising(advParameters);
             Console.WriteLine("Started advertising");
             return true;
+
+        }
+        public async Task<bool> stopAdvertising()
+        {
+            serviceProvider.StopAdvertising();
+            Console.WriteLine("Stopped advertising");
+            return true;
         }
 
 
-        private static async Task<bool> CheckPeripheralRoleSupportAsync()
+            private static async Task<bool> CheckPeripheralRoleSupportAsync()
         {
             // BT_Code: New for Creator's Update - Bluetooth adapter has properties of the local BT radio.
             var localAdapter = await BluetoothAdapter.GetDefaultAsync();
@@ -101,7 +123,8 @@ namespace BLE
             }
         }
 
-        private static async void rxCharacteristic_WriteRequestedAsync(GattLocalCharacteristic sender, GattWriteRequestedEventArgs args)
+        // method to collect data from the board and then send it via a port
+        private async void rxCharacteristic_WriteRequestedAsync(GattLocalCharacteristic sender, GattWriteRequestedEventArgs args)
         {
             // BT_Code: Processing a write request.
             using (args.GetDeferral())
@@ -117,17 +140,48 @@ namespace BLE
                 uint requestLength = request.Value.Length;
                 Console.WriteLine($"Write to RX requested of {requestLength} bytes.");
                 var reader = DataReader.FromBuffer(request.Value);
-                reader.ByteOrder = ByteOrder.LittleEndian;
-                string val = reader.ReadString(requestLength);
-                byte[] arr = Encoding.UTF8.GetBytes(val);
-                await txCharacteristic.NotifyValueAsync(arr.AsBuffer());
-                Console.WriteLine(val);
+                //first chunk of the package
+                if(currentReadCycle == 0)
+                {
+                    reader.ByteOrder = ByteOrder.LittleEndian;
+                    byte[] bytes = new byte[requestLength];
+                    reader.ReadBytes(bytes);
+                    int length = BitConverter.ToInt16(bytes.Take(2).ToArray(), 0);
+                    int packageSize = MTU - 3;
+                    totalReadCycles = (int)Math.Ceiling((double)length / packageSize);
+                    readBuffer += Encoding.UTF8.GetString(bytes.Skip(2).ToArray());
+                    currentReadCycle++;
+                    return;
+                }
+                //last chunk of the package
+                if (currentReadCycle == totalReadCycles - 1)
+                {
+                    byte[] bytes = new byte[requestLength];
+                    reader.ReadBytes(bytes);
+                    readBuffer += Encoding.UTF8.GetString(bytes);
+                    currentReadCycle = 0;
+                    totalReadCycles = 0;
+                    socketManager.send(Encoding.UTF8.GetBytes(readBuffer));
+                    return;
+                }
+
+                //standart chunk reading
+                byte[] chunk = new byte[requestLength];
+                reader.ReadBytes(chunk);
+                readBuffer += Encoding.UTF8.GetString(chunk);
+                currentReadCycle++;
+                //data display for debugging
+                //await txCharacteristic.NotifyValueAsync(arr.AsBuffer());
+                //Console.WriteLine(val);
             }
         }
-
-        private static async void txCharacteristic_SubscribersChangedAsync(GattLocalCharacteristic sender, object args)
+        //method updating the number of subscribers
+        //currently designed to share the MTU of the last subscriber
+        private async void txCharacteristic_SubscribersChangedAsync(GattLocalCharacteristic sender, object args)
         {
             Console.WriteLine($"Now there are {sender.SubscribedClients.Count} subscribers");
+            JsonDocument subscriberNotification = JsonDocument.Parse($"{{\"internal\": subscribers {sender.SubscribedClients.Count}}}");
+            socketManager.send(Encoding.UTF8.GetBytes(subscriberNotification.RootElement.GetRawText()));
             if (sender.SubscribedClients.Count >= 1)
             {
                 GattSession tmpSession = sender.SubscribedClients[sender.SubscribedClients.Count - 1].Session;
@@ -135,19 +189,13 @@ namespace BLE
                 {
                     Console.WriteLine($"{tmpSession.MaxPduSize} - max MTU size for device {tmpSession.DeviceId.Id}");
                     MTU = tmpSession.MaxPduSize;
-                    //
                 }
             }
         }
 
-        public void handleInput(JsonDocument doc)
+        //determines if the recieved input is data or a command
+        public async Task handleInput(JsonDocument doc)
         {
-            //parse only payload from byte array    later divide into a separate method
-            //string payload = Encoding.UTF8.GetString(input, 3, input.Length-3);
-            //if (input[0] == socketStream.Internal)
-            //    handleInpputCommand(payload);
-            //if (input[0] == socketStream.Data)
-            //    handleInpputData(payload);
 
             JsonElement data, command;
             if(doc.RootElement.TryGetProperty("datapipe", out data))
@@ -158,23 +206,54 @@ namespace BLE
             if(doc.RootElement.TryGetProperty("internal", out command))
             {
                 Console.WriteLine("Command detected");
-                handleInputCommand(command);
+                await handleInputCommandAsync(command);
             }
         }
-        private void handleInputCommand(JsonElement command)
+
+        //handles input if it is a command
+        private async Task handleInputCommandAsync(JsonElement command)
         {
+            JsonDocument jsonResponse;
             switch (command.GetString())
             {
                 case "mtu?":
+                    //return MTU - 3 service bytes
+                    jsonResponse = JsonDocument.Parse($"{{\"response\": {MTU-3}}}");
+                    socketManager.send(Encoding.UTF8.GetBytes(jsonResponse.RootElement.GetRawText()));
                     break;
+                //communication test
                 case "hello":
-                    JsonDocument jsonDocument = JsonDocument.Parse("{\"response\": 0}");
-                    socketManager.send(Encoding.UTF8.GetBytes(jsonDocument.RootElement.GetRawText()));
-                    Console.WriteLine(jsonDocument.RootElement.GetRawText());
+                    jsonResponse = JsonDocument.Parse("{\"response\": 0}");
+                    socketManager.send(Encoding.UTF8.GetBytes(jsonResponse.RootElement.GetRawText()));
+                    break;
+                //attempts to start advertising and sends a corresponding code based on the result through the socket
+                case "startadv":
+                    if (!await startAdvertising())
+                    {
+                        jsonResponse = JsonDocument.Parse("{\"response\": 2}");
+                        socketManager.send(Encoding.UTF8.GetBytes(jsonResponse.RootElement.GetRawText()));
+                    }
+                    else
+                    {
+                        jsonResponse = JsonDocument.Parse("{\"response\": 0}");
+                        socketManager.send(Encoding.UTF8.GetBytes(jsonResponse.RootElement.GetRawText()));
+                    }
+                    break;
+                case "stopadv":
+                    if (!await stopAdvertising())
+                    {
+                        //Handle error response?
+                    }
+                    else
+                    {
+                        jsonResponse = JsonDocument.Parse("{\"response\": 0}");
+                        socketManager.send(Encoding.UTF8.GetBytes(jsonResponse.RootElement.GetRawText()));
+                    }
                     break;
             }
         }
         //Method to handle input commands from the server
+        //Potentially redundant, might get removed when the protocol is finalised
         private void handleInputCommand(string payload)
         {
             //test comms
@@ -196,6 +275,7 @@ namespace BLE
             JsonElement payload;
             if(data.TryGetProperty("payload", out payload))
             {
+                //divides the payload into chunks of maximum possible size and sends them consecutively
                 int packageSize = MTU - 3;
                 byte[] received = Encoding.UTF8.GetBytes(payload.GetRawText());
                 received = received.Skip(1).Take(received.Length - 2).ToArray();
@@ -221,6 +301,7 @@ namespace BLE
         {
             return socketManager.recieveInput().Result;
         }
+        //used to indicate array length in the format specified by protocol
         private static byte[] lengthToBigEndian(int length)
         {
             byte[] byteArray = BitConverter.GetBytes((ushort)length);

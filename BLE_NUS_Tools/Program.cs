@@ -1,20 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Threading.Tasks;
-using Windows.ApplicationModel.Core;
-using Windows.Devices.Bluetooth;
-using Windows.Devices.Bluetooth.GenericAttributeProfile;
-using Windows.Foundation;
-using Windows.Storage.Streams;
-using Microsoft.VisualBasic;
-using System.Runtime.InteropServices.WindowsRuntime;
-using static System.Runtime.InteropServices.JavaScript.JSType;
-using BLE;
-using System.Net;
-using System.Net.Sockets;
-using System.Text;
-using BLE_NUS_Tools;
-using System.Text.Json;
+﻿using System.Text.Json;
 
 namespace BLE
 {
@@ -23,18 +7,27 @@ namespace BLE
 
         static async Task Main(string[] args)
         {
+            //variables to set up launch without parameters
+            string custom_ip = "null";
+            int custom_port = -1;
+            if (args.Length == 1)
+                custom_ip = args[0];
+            if (args.Length == 2)
+            {
+                custom_ip = args[0];
+                int.TryParse(args[1], out custom_port);
+            }
             connectionManager Manager = new connectionManager();
-            if(! await Manager.initializeManager()|| ! await Manager.startAdvertising()){
+            if(! await Manager.initializeManager(custom_ip,custom_port)){
                 Console.WriteLine("Initialization failed. Press enter to close the app");
                 Console.ReadLine();
                 return;
             }
-            //Manager.socketManager.send(Commands.formatCommand(socketStream.Internal,sentCommands.sucess));
             while (true) {
                 JsonDocument tmp = Manager.socketManager.recieveInput().Result;
                 if (tmp != null)
                 {
-                    Manager.handleInput(tmp);
+                    await Manager.handleInput(tmp);
                     tmp = null;
                 }
             }

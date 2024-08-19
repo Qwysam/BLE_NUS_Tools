@@ -1,28 +1,57 @@
-﻿using System;
-using System.Net;
+﻿using System.Net;
 using System.Net.Sockets;
-using System.Text;
 using System.Text.Json;
-using Windows.Devices.Bluetooth.GenericAttributeProfile;
 
 namespace BLE
 {
+    //class for managing the socket connection, sending and recieving data
     public class socketManager
     {
+        //socket setup
         Socket socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
-        string ip = "127.0.0.1";
-        int port = 1337;
+        string default_ip = "127.0.0.1";
+        int default_port = 1337;
         public socketManager(){
-            IPEndPoint ipEndPoint = new IPEndPoint(IPAddress.Parse("127.0.0.1"), 1337);
+            IPEndPoint ipEndPoint = new IPEndPoint(IPAddress.Parse(default_ip), default_port);
             try { socket.Connect(ipEndPoint); }
             catch (Exception ex) {
             Console.WriteLine(ex.Message);
             }
-        }  
+        }
+
+        public socketManager(string custom_ip)
+        {
+            IPEndPoint ipEndPoint = new IPEndPoint(IPAddress.Parse(custom_ip), default_port);
+            try { socket.Connect(ipEndPoint); }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex.Message);
+            }
+        }
+        public socketManager(int custom_port)
+        {
+            IPEndPoint ipEndPoint = new IPEndPoint(IPAddress.Parse(default_ip), custom_port);
+            try { socket.Connect(ipEndPoint); }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex.Message);
+            }
+        }
+
+        public socketManager(string custom_ip,int custom_port)
+        {
+            IPEndPoint ipEndPoint = new IPEndPoint(IPAddress.Parse(custom_ip), custom_port);
+            try { socket.Connect(ipEndPoint); }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex.Message);
+            }
+        }
+        //basic method for sending processed data
         public void send(byte[] info){
             socket.Send(info);
         }
-        //Needs testing
+
         public async Task<JsonDocument> recieveInput()
         {
             var bufferSize = 65535;
@@ -50,29 +79,10 @@ namespace BLE
 
             return result;
 
-            //outdated code for byte operations
-            //byte[] payloadSize = new byte[2];
-            //payloadSize[0] = buffer[1];
-            //payloadSize[1] = buffer[2];
-            //byte[] result = new byte[ConvertBigEndianBytesToInt(payloadSize)+3];
-            //Array.Copy(buffer,0,result,0,result.Length);
-
         }
+        //destructor to close the connection when object is no longer used
         ~socketManager(){
             socket.Shutdown(SocketShutdown.Both);
-        }
-
-        private static int ConvertBigEndianBytesToInt(byte[] bytes)
-        {
-            // Make a copy of the array and reverse it to little-endian order
-            byte[] reversedBytes = new byte[bytes.Length];
-            Array.Copy(bytes, reversedBytes, bytes.Length);
-            Array.Reverse(reversedBytes);
-
-            // Convert the reversed array to an integer
-            int result = BitConverter.ToInt16(reversedBytes, 0);
-
-            return result;
         }
     }
 }
